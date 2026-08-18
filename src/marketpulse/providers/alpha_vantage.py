@@ -6,6 +6,10 @@ from marketpulse.settings import Settings
 from marketpulse.symbols import normalize_symbol
 
 
+class AlphaVantageAPIError(RuntimeError):
+    """Raised when Alpha Vantage returns an error response."""
+
+
 class AlphaVantageClient:
     """HTTP client for Alpha Vantage market-data endpoints."""
 
@@ -34,4 +38,12 @@ class AlphaVantageClient:
         )
         response.raise_for_status()
 
-        return response.json()
+        payload: dict[str, Any] = response.json()
+        api_message = (
+            payload.get("Error Message") or payload.get("Note") or payload.get("Information")
+        )
+
+        if api_message:
+            raise AlphaVantageAPIError(str(api_message))
+
+        return payload

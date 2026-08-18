@@ -1,6 +1,10 @@
 import httpx
+import pytest
 
-from marketpulse.providers.alpha_vantage import AlphaVantageClient
+from marketpulse.providers.alpha_vantage import (
+    AlphaVantageAPIError,
+    AlphaVantageClient,
+)
 from marketpulse.settings import Settings
 
 
@@ -46,3 +50,33 @@ def test_fetch_daily_prices_builds_expected_request() -> None:
         result = client.fetch_daily_prices(" lrcx ")
 
     assert result == response_payload
+
+
+def test_fetch_daily_prices_raises_for_api_message() -> None:
+    response_payload = {
+        "Information": "API request limit reached",
+    }
+
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            json=response_payload,
+        )
+
+    settings = Settings(
+        alpha_vantage_api_key="test-api-key",
+        _env_file=None,
+    )
+    transport = httpx.MockTransport(handle_request)
+
+    with httpx.Client(transport=transport) as http_client:
+        client = AlphaVantageClient(
+            settings=settings,
+            http_client=http_client,
+        )
+
+        with pytest.raises(
+            AlphaVantageAPIError,
+            match="API request limit reached",
+        ):
+            client.fetch_daily_prices("LRCX")
