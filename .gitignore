@@ -8,6 +8,11 @@ __pycache__/
 .coverage
 htmlcov/
 
+# Python packaging artifacts
+*.egg-info/
+build/
+dist/
+
 # Secrets and private portfolio configuration
 .env
 .env.*
