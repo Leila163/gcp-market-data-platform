@@ -22,6 +22,7 @@ config/portfolio.private.yaml
 # Locally downloaded or generated data
 data/raw/
 data/processed/
+data/curated/
 
 # Editor and operating-system files
 .vscode/*
