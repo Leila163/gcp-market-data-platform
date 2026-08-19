@@ -1,5 +1,7 @@
 # MarketPulse
 
+[![CI](https://github.com/Leila163/gcp-market-data-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/Leila163/gcp-market-data-platform/actions/workflows/ci.yml)
+
 MarketPulse is an educational cloud data engineering project for collecting,
 validating, transforming, and analyzing US equity market data.
 
@@ -19,7 +21,8 @@ portfolio concentration, risk, and diversification scenarios. It is designed as 
 
 ## Current status
 
-Sprint 1: local Python environment and repository foundation.
+Sprint 1 complete: tested Alpha Vantage extraction, secure configuration,
+typed OHLCV transformation, and automated CI.
 
 ## Privacy
 
