@@ -1,0 +1,50 @@
+[
+  {
+    "name": "symbol",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Normalized US equity ticker symbol."
+  },
+  {
+    "name": "trading_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Trading date reported by the market data provider."
+  },
+  {
+    "name": "open",
+    "type": "NUMERIC",
+    "mode": "REQUIRED",
+    "description": "Opening price in US dollars."
+  },
+  {
+    "name": "high",
+    "type": "NUMERIC",
+    "mode": "REQUIRED",
+    "description": "Highest price in US dollars."
+  },
+  {
+    "name": "low",
+    "type": "NUMERIC",
+    "mode": "REQUIRED",
+    "description": "Lowest price in US dollars."
+  },
+  {
+    "name": "close",
+    "type": "NUMERIC",
+    "mode": "REQUIRED",
+    "description": "Closing price in US dollars."
+  },
+  {
+    "name": "volume",
+    "type": "INT64",
+    "mode": "REQUIRED",
+    "description": "Number of shares traded."
+  },
+  {
+    "name": "source",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Market data provider identifier."
+  }
+]
