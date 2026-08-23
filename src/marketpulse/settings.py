@@ -13,6 +13,8 @@ class Settings(BaseSettings):
 
     alpha_vantage_api_key: SecretStr
     alpha_vantage_base_url: str = "https://www.alphavantage.co/query"
+    gcp_project_id: str | None = None
+    gcs_raw_bucket: str | None = None
     request_timeout_seconds: float = Field(
         default=10.0,
         gt=0,
