@@ -4,7 +4,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
+from google.cloud import storage
 
+from marketpulse.gcs import GCSRawUploader
 from marketpulse.pipeline import IngestionResult, ingest_daily_prices
 from marketpulse.providers.alpha_vantage import AlphaVantageClient
 from marketpulse.settings import Settings
@@ -17,6 +19,7 @@ class IngestionPaths:
 
     raw_destination: Path
     curated_destination: Path
+    raw_object_name: str
 
 
 def build_ingestion_paths(
@@ -54,6 +57,7 @@ def build_ingestion_paths(
     return IngestionPaths(
         raw_destination=raw_destination,
         curated_destination=curated_destination,
+        raw_object_name=raw_destination.relative_to(data_directory / "raw").as_posix(),
     )
 
 
@@ -82,14 +86,38 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path("data"),
         help="Root output directory. Default: data",
     )
+    ingest_parser.add_argument(
+        "--upload-raw",
+        action="store_true",
+        help="Upload the raw API response to Google Cloud Storage.",
+    )
 
     return parser
+
+
+def build_raw_uploader(
+    *,
+    settings: Settings,
+) -> GCSRawUploader:
+    """Build a configured raw-data Cloud Storage uploader."""
+    if not settings.gcp_project_id or not settings.gcs_raw_bucket:
+        raise ValueError("GCP_PROJECT_ID and GCS_RAW_BUCKET are required for raw cloud upload")
+
+    storage_client = storage.Client(
+        project=settings.gcp_project_id,
+    )
+
+    return GCSRawUploader(
+        bucket_name=settings.gcs_raw_bucket,
+        client=storage_client,
+    )
 
 
 def run_daily_ingestion(
     *,
     symbol: str,
     data_directory: Path,
+    upload_raw: bool = False,
 ) -> IngestionResult:
     """Run one live daily-price ingestion."""
     settings = Settings()
@@ -98,6 +126,8 @@ def run_daily_ingestion(
         symbol=symbol,
         ingestion_time=datetime.now(UTC),
     )
+
+    raw_uploader = build_raw_uploader(settings=settings) if upload_raw else None
 
     with httpx.Client() as http_client:
         client = AlphaVantageClient(
@@ -109,6 +139,8 @@ def run_daily_ingestion(
             client=client,
             raw_destination=paths.raw_destination,
             curated_destination=paths.curated_destination,
+            raw_uploader=raw_uploader,
+            raw_object_name=(paths.raw_object_name if upload_raw else None),
         )
 
 
@@ -120,11 +152,14 @@ def main() -> None:
         result = run_daily_ingestion(
             symbol=arguments.symbol,
             data_directory=arguments.data_directory,
+            upload_raw=arguments.upload_raw,
         )
         print(f"Ingestion completed for {result.symbol}")
         print(f"Records written: {result.record_count}")
         print(f"Raw data: {result.raw_destination}")
         print(f"Curated data: {result.curated_destination}")
+        if result.raw_storage_uri is not None:
+            print(f"Cloud raw data: {result.raw_storage_uri}")
 
 
 if __name__ == "__main__":
