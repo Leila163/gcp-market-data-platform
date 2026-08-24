@@ -93,12 +93,14 @@ BigQuery automation milestone completed:
 * Immutable local raw-response writes and curated JSONL output.
 * Tested Cloud Storage adapter with create-only upload protection.
 * Automated raw uploads through the `--upload-raw` CLI option.
+* Live raw-upload validation with matching local and Cloud Storage MD5 checksums.
 * Strict BigQuery staging loads using an explicit eight-field schema.
 * Idempotent warehouse upserts through a staging-table `MERGE`.
 * Automated BigQuery loading through the `--load-bigquery` CLI option.
 * Staging-table cleanup after successful and failed warehouse operations.
 * Live validation produced 103 unique LRCX records with no duplicate business keys.
 * Repeating the same curated load affected zero warehouse rows.
+* Reusable BigQuery JSON schema and version-controlled analytical SQL.
 * Automated pytest, Ruff lint, and Ruff formatting checks in GitHub Actions.
 
 ## Next milestone
