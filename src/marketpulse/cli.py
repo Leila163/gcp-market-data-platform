@@ -4,8 +4,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
-from google.cloud import storage
+from google.cloud import bigquery, storage
 
+from marketpulse.bigquery import BigQueryDailyPriceLoader
 from marketpulse.gcs import GCSRawUploader
 from marketpulse.pipeline import IngestionResult, ingest_daily_prices
 from marketpulse.providers.alpha_vantage import AlphaVantageClient
@@ -91,6 +92,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Upload the raw API response to Google Cloud Storage.",
     )
+    ingest_parser.add_argument(
+        "--load-bigquery",
+        action="store_true",
+        help="Upsert curated daily prices into BigQuery.",
+    )
 
     return parser
 
@@ -113,11 +119,33 @@ def build_raw_uploader(
     )
 
 
+def build_bigquery_loader(
+    *,
+    settings: Settings,
+) -> BigQueryDailyPriceLoader:
+    """Build a configured BigQuery daily-price loader."""
+    if not settings.gcp_project_id or not settings.bigquery_dataset_id:
+        raise ValueError("GCP_PROJECT_ID and BIGQUERY_DATASET_ID are required for BigQuery loading")
+
+    bigquery_client = bigquery.Client(
+        project=settings.gcp_project_id,
+    )
+
+    return BigQueryDailyPriceLoader(
+        client=bigquery_client,
+        project_id=settings.gcp_project_id,
+        dataset_id=settings.bigquery_dataset_id,
+        table_id=settings.bigquery_table_id,
+        location=settings.bigquery_location,
+    )
+
+
 def run_daily_ingestion(
     *,
     symbol: str,
     data_directory: Path,
     upload_raw: bool = False,
+    load_bigquery: bool = False,
 ) -> IngestionResult:
     """Run one live daily-price ingestion."""
     settings = Settings()
@@ -128,6 +156,7 @@ def run_daily_ingestion(
     )
 
     raw_uploader = build_raw_uploader(settings=settings) if upload_raw else None
+    curated_loader = build_bigquery_loader(settings=settings) if load_bigquery else None
 
     with httpx.Client() as http_client:
         client = AlphaVantageClient(
@@ -141,6 +170,7 @@ def run_daily_ingestion(
             curated_destination=paths.curated_destination,
             raw_uploader=raw_uploader,
             raw_object_name=(paths.raw_object_name if upload_raw else None),
+            curated_loader=curated_loader,
         )
 
 
@@ -153,14 +183,17 @@ def main() -> None:
             symbol=arguments.symbol,
             data_directory=arguments.data_directory,
             upload_raw=arguments.upload_raw,
+            load_bigquery=arguments.load_bigquery,
         )
         print(f"Ingestion completed for {result.symbol}")
         print(f"Records written: {result.record_count}")
         print(f"Raw data: {result.raw_destination}")
         print(f"Curated data: {result.curated_destination}")
+
         if result.raw_storage_uri is not None:
             print(f"Cloud raw data: {result.raw_storage_uri}")
 
-
-if __name__ == "__main__":
-    main()
+        if result.warehouse_target is not None:
+            print(f"BigQuery target: {result.warehouse_target}")
+            print(f"Warehouse input rows: {result.warehouse_input_rows}")
+            print(f"Warehouse affected rows: {result.warehouse_affected_rows}")

@@ -30,8 +30,23 @@ def test_settings_loads_optional_gcp_resource_names(
     monkeypatch.setenv("ALPHA_VANTAGE_API_KEY", "test-api-key")
     monkeypatch.setenv("GCP_PROJECT_ID", "test-project")
     monkeypatch.setenv("GCS_RAW_BUCKET", "test-raw-bucket")
+    monkeypatch.setenv(
+        "BIGQUERY_DATASET_ID",
+        "test_analytics",
+    )
+    monkeypatch.setenv(
+        "BIGQUERY_TABLE_ID",
+        "daily_prices",
+    )
+    monkeypatch.setenv(
+        "BIGQUERY_LOCATION",
+        "US",
+    )
 
     settings = Settings(_env_file=None)
 
     assert settings.gcp_project_id == "test-project"
     assert settings.gcs_raw_bucket == "test-raw-bucket"
+    assert settings.bigquery_dataset_id == "test_analytics"
+    assert settings.bigquery_table_id == "daily_prices"
+    assert settings.bigquery_location == "US"

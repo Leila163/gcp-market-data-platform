@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     alpha_vantage_base_url: str = "https://www.alphavantage.co/query"
     gcp_project_id: str | None = None
     gcs_raw_bucket: str | None = None
+    bigquery_dataset_id: str | None = None
+    bigquery_table_id: str = "daily_prices"
+    bigquery_location: str = "US"
     request_timeout_seconds: float = Field(
         default=10.0,
         gt=0,

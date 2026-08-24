@@ -9,6 +9,7 @@ description = "A cloud data platform for US equity and portfolio analytics."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "google-cloud-bigquery>=3.43.0,<4",
     "google-cloud-storage>=3.13.1,<4",
     "httpx>=0.28.1,<1.0",
     "pydantic>=2.7,<3",

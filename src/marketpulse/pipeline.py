@@ -30,6 +30,24 @@ class RawFileUploader(Protocol):
     ) -> str: ...
 
 
+class CuratedLoadResult(Protocol):
+    """Statistics returned by a curated warehouse load."""
+
+    target_table: str
+    input_rows: int
+    affected_rows: int
+
+
+class CuratedPriceLoader(Protocol):
+    """Interface required from a curated-data warehouse loader."""
+
+    def upsert_jsonl(
+        self,
+        *,
+        source_path: Path,
+    ) -> CuratedLoadResult: ...
+
+
 @dataclass(frozen=True)
 class IngestionResult:
     """Summary of a completed daily-price ingestion."""
@@ -39,6 +57,9 @@ class IngestionResult:
     raw_destination: Path
     curated_destination: Path
     raw_storage_uri: str | None = None
+    warehouse_target: str | None = None
+    warehouse_input_rows: int | None = None
+    warehouse_affected_rows: int | None = None
 
 
 def ingest_daily_prices(
@@ -49,6 +70,7 @@ def ingest_daily_prices(
     curated_destination: Path,
     raw_uploader: RawFileUploader | None = None,
     raw_object_name: str | None = None,
+    curated_loader: CuratedPriceLoader | None = None,
 ) -> IngestionResult:
     """Fetch, preserve, transform, and store daily prices."""
     normalized_symbol = normalize_symbol(symbol)
@@ -75,10 +97,24 @@ def ingest_daily_prices(
         destination=curated_destination,
     )
 
+    warehouse_result = None
+
+    if curated_loader is not None:
+        warehouse_result = curated_loader.upsert_jsonl(
+            source_path=curated_destination,
+        )
+
     return IngestionResult(
         symbol=normalized_symbol,
         record_count=record_count,
         raw_destination=raw_destination,
         curated_destination=curated_destination,
         raw_storage_uri=raw_storage_uri,
+        warehouse_target=(warehouse_result.target_table if warehouse_result is not None else None),
+        warehouse_input_rows=(
+            warehouse_result.input_rows if warehouse_result is not None else None
+        ),
+        warehouse_affected_rows=(
+            warehouse_result.affected_rows if warehouse_result is not None else None
+        ),
     )

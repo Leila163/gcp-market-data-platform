@@ -5,6 +5,7 @@ from unittest.mock import Mock
 import pytest
 
 from marketpulse.cli import (
+    build_bigquery_loader,
     build_ingestion_paths,
     build_parser,
     build_raw_uploader,
@@ -124,5 +125,80 @@ def test_main_passes_raw_upload_option_and_prints_cloud_uri(
         symbol="LRCX",
         data_directory=Path("data"),
         upload_raw=True,
+        load_bigquery=False,
     )
     assert "Cloud raw data: gs://test-raw-bucket/raw/LRCX.json" in capsys.readouterr().out
+
+
+def test_main_passes_bigquery_load_option_and_prints_warehouse_result(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    result = IngestionResult(
+        symbol="LRCX",
+        record_count=1,
+        raw_destination=Path("data/raw/LRCX.json"),
+        curated_destination=Path("data/curated/LRCX.jsonl"),
+        warehouse_target="test-project.test_analytics.daily_prices",
+        warehouse_input_rows=1,
+        warehouse_affected_rows=1,
+    )
+    ingestion_runner = Mock(return_value=result)
+
+    monkeypatch.setattr(
+        "marketpulse.cli.run_daily_ingestion",
+        ingestion_runner,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "marketpulse",
+            "ingest-daily",
+            "LRCX",
+            "--load-bigquery",
+        ],
+    )
+
+    main()
+
+    ingestion_runner.assert_called_once_with(
+        symbol="LRCX",
+        data_directory=Path("data"),
+        upload_raw=False,
+        load_bigquery=True,
+    )
+
+    output = capsys.readouterr().out
+    assert "BigQuery target: test-project.test_analytics.daily_prices" in output
+    assert "Warehouse input rows: 1" in output
+    assert "Warehouse affected rows: 1" in output
+
+
+def test_build_parser_accepts_bigquery_load_flag() -> None:
+    parser = build_parser()
+
+    arguments = parser.parse_args(
+        [
+            "ingest-daily",
+            "LRCX",
+            "--load-bigquery",
+        ]
+    )
+
+    assert arguments.load_bigquery is True
+    assert arguments.upload_raw is False
+
+
+def test_build_bigquery_loader_requires_gcp_settings() -> None:
+    settings = Settings(
+        alpha_vantage_api_key="test-api-key",
+        _env_file=None,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="GCP_PROJECT_ID and BIGQUERY_DATASET_ID",
+    ):
+        build_bigquery_loader(
+            settings=settings,
+        )
