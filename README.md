@@ -16,24 +16,25 @@ flowchart LR
     API[Alpha Vantage API] --> CLI[Python ingestion CLI]
     CLI --> RAW[Local raw JSON]
     CLI --> CURATED[Local curated JSONL]
-    RAW -->|Automated create-only upload| GCS[(Cloud Storage raw zone)]
-    CURATED -->|Manual batch load| BQ[(BigQuery daily_prices)]
+    RAW -->|Create-only upload| GCS[(Cloud Storage raw zone)]
+    CURATED -->|Staging and MERGE| BQ[(BigQuery daily_prices)]
     BQ --> SQL[Version-controlled SQL analytics]
     REPO[GitHub repository] --> CI[GitHub Actions: pytest and Ruff]
 ```
 
-Raw Cloud Storage uploads are automated through the optional `--upload-raw`
-CLI flag. BigQuery loading remains a manual bootstrap operation and will be
-automated in the next milestone.
+Cloud Storage uploads and BigQuery loads are automated through the optional
+`--upload-raw` and `--load-bigquery` CLI flags. The flags can be used
+independently or together.
 
 ## Cloud data design
 
-| Layer     | Current implementation                                                                                                                                 |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Raw       | Private Cloud Storage bucket in `us-central1`, Standard storage, uniform bucket-level access, public access prevention, and create-only object uploads |
-| Curated   | BigQuery dataset in the `US` multi-region                                                                                                              |
-| Table     | `daily_prices`, partitioned by `trading_date` and clustered by `symbol`                                                                                |
-| Analytics | Version-controlled GoogleSQL with dry-run cost validation                                                                                              |
+| Layer | Current implementation |
+| --- | --- |
+| Raw | Private Cloud Storage bucket in `us-central1`, Standard storage, uniform bucket-level access, public access prevention, and create-only object uploads |
+| Curated | BigQuery dataset in the `US` multi-region with strict JSONL staging loads |
+| Table | `daily_prices`, partitioned by `trading_date` and clustered by `symbol` |
+| Upsert | Idempotent `MERGE` using `symbol`, `trading_date`, and `source` as the business key |
+| Analytics | Version-controlled GoogleSQL with dry-run cost validation |
 
 ## Running the pipeline
 
@@ -55,8 +56,20 @@ Run an ingestion with an automated raw upload to Cloud Storage:
 marketpulse ingest-daily LRCX --upload-raw
 ```
 
-Cloud uploads require Application Default Credentials and the
-`GCP_PROJECT_ID` and `GCS_RAW_BUCKET` environment settings. Copy
+Run an ingestion with an idempotent BigQuery load:
+
+```powershell
+marketpulse ingest-daily LRCX --load-bigquery
+```
+
+Run both cloud operations:
+
+```powershell
+marketpulse ingest-daily LRCX --upload-raw --load-bigquery
+```
+
+Cloud operations require Application Default Credentials and the appropriate
+`GCP_PROJECT_ID`, `GCS_RAW_BUCKET`, and BigQuery environment settings. Copy
 `.env.example` to `.env` and keep all real credentials out of version control.
 
 ## Project goals
@@ -72,26 +85,29 @@ Cloud uploads require Application Default Credentials and the
 
 ## Current status
 
-Cloud Storage automation milestone completed:
+BigQuery automation milestone completed:
 
 * Tested Alpha Vantage extraction and API error handling.
 * Secure environment-based configuration using secret types.
 * Typed transformation of daily OHLCV data.
 * Immutable local raw-response writes and curated JSONL output.
-* Tested Python Cloud Storage adapter using a generation-match precondition to prevent overwrites.
+* Tested Cloud Storage adapter with create-only upload protection.
 * Automated raw uploads through the `--upload-raw` CLI option.
-* Live cloud validation with matching local and Cloud Storage MD5 checksums.
-* BigQuery table containing 100 validated LRCX daily-price records.
-* Reusable BigQuery JSON schema and analytical SQL.
+* Strict BigQuery staging loads using an explicit eight-field schema.
+* Idempotent warehouse upserts through a staging-table `MERGE`.
+* Automated BigQuery loading through the `--load-bigquery` CLI option.
+* Staging-table cleanup after successful and failed warehouse operations.
+* Live validation produced 103 unique LRCX records with no duplicate business keys.
+* Repeating the same curated load affected zero warehouse rows.
 * Automated pytest, Ruff lint, and Ruff formatting checks in GitHub Actions.
 
 ## Next milestone
 
-* Add a tested BigQuery Python adapter.
-* Automate curated warehouse loads with idempotent job behavior.
-* Provision cloud resources with Terraform.
-* Schedule ingestion after local and cloud integration tests pass.
-* Expand the analytical layer to portfolio return, volatility, and diversification metrics.
+* Provision Cloud Storage and BigQuery resources with Terraform.
+* Package the ingestion pipeline for a managed Google Cloud runtime.
+* Schedule ingestion after infrastructure and integration tests pass.
+* Add freshness, completeness, and duplicate-key data-quality checks.
+* Expand analytics to return, volatility, drawdown, and diversification metrics.
 
 ## Privacy
 
