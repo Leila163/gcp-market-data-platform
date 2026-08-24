@@ -128,7 +128,7 @@ class BigQueryDailyPriceLoader:
         dataset_id: str,
         table_id: str,
         location: str,
-        maximum_bytes_billed: int = 10_485_760,
+        maximum_bytes_billed: int = 20_971_520,
     ) -> None:
         self._client = client
         self._project_id = project_id

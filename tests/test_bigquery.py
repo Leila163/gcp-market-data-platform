@@ -102,7 +102,7 @@ def test_upsert_jsonl_stages_merges_and_cleans_up(
     assert "MERGE `test-project.marketpulse_analytics.daily_prices`" in merge_sql
     assert f"USING `{staging_table}`" in merge_sql
     assert query_call.kwargs["location"] == "US"
-    assert query_call.kwargs["job_config"].maximum_bytes_billed == 10_485_760
+    assert query_call.kwargs["job_config"].maximum_bytes_billed == 20_971_520
     merge_job.result.assert_called_once_with()
 
     client.delete_table.assert_called_once_with(
